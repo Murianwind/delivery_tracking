@@ -19,17 +19,16 @@
     <div class="tab-content" id="nav-tabContent">
     {{ macros.m_tab_content_start('normal', true) }}
         {% for site in site_map %}
-            {{ macros.setting_checkbox('use_site_'+site, site_map[site] , desc=None, value=arg['use_site_'+site]) }}
+            {{ macros.setting_checkbox('use_site_'+site, site , desc=None, value=arg['use_site_'+site]) }}
             <div id="div_setting_{{site}}" style="display: none; margin-left:10%;">
-
-    
+                {{ macros.setting_input_text('tracking_no_'+site, '송장번호 (쉼표로 여러개 입력)', value=arg['tracking_no_'+site], col='6') }}
             </div>
         {% endfor %}
 
        
     {{ macros.m_tab_content_end() }} 
     {{ macros.m_tab_content_start('alarm', false) }} 
-    {{ macros.setting_checkbox('use_delivery_tracking', '전체 알람 사용', desc='메시지 ID : bot_delivery_tracking', value=arg['use_delivery_tracking']) }}
+    {{ macros.setting_checkbox('use_delivery_tracking_alarm', '전체 알람 사용', desc='메시지 ID : bot_delivery_tracking', value=arg['use_delivery_tracking_alarm']) }}
 
 
 

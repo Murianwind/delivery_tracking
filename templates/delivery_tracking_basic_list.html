@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block content %}
+<div>
+    <form id="form_search" class="form-inline" style="text-align:left">
+      <div class="container-fluid">
+        <div class="row show-grid">
+          <span class="col-md-6">
+            <select id="order" name="order" class="form-control form-control-sm">
+              <option value="desc">최근순</option>
+              <option value="asc">오래된순</option>
+            </select>
+            <select id="option1" name="option1" class="form-control form-control-sm">
+              <option value="all">택배사 전체</option>
+                {% for site in site_map %}
+                    <option value="{{site}}">{{site}}</option>
+                {% endfor %}
+            </select>
+            <select id="option2" name="option2" class="form-control form-control-sm">
+              <option value="all">배송상태 전체</option>
+            {% for status in status_list %}
+                <option value="{{status}}">{{status}}</option>
+            {% endfor %}
+  
+  
+            </select>
+        </span>
+        <span class="col-md-6">
+          <input id="keyword" name="keyword" class="form-control form-control-sm w-75" type="text" placeholder="" aria-label="Search">
+          {{ macros.m_button_group([['globalSearchSearchBtn', '검색'], ['globalSearchResetBtn', '리셋']]) }}
+        </span>
+    </div>
+  </div>
+</form>
+
+<div id='page1'></div>
+{{ macros.m_hr_head_top() }}
+{{ macros.m_row_start('0') }}
+{{ macros.m_col(6,  macros.m_strong('제목')) }}
+{{ macros.m_col(2,  macros.m_strong('택배사')) }}
+{{ macros.m_col(2,  macros.m_strong('시간')) }}
+{{ macros.m_col(1,  macros.m_strong('상태')) }}
+{{ macros.m_col(1,  macros.m_strong('DB')) }}
+{{ macros.m_row_end() }}
+{{ macros.m_hr_head_bottom() }}
+<div id="list_div"></div>
+<script type="text/javascript">
+    let last_list_option = "{{arg['delivery_tracking_item_last_list_option']}}";
+
+$(document).ready(function(){
+    tmp = last_list_option.split('|');
+      if (tmp.length == 5) {
+        $("#order").val(tmp[0]);
+        $("#keyword").val(tmp[2]);
+        $("#option1").val(tmp[3]);
+        $("#option2").val(tmp[4]);
+        globalRequestSearch(tmp[1]);
+      } else {
+        globalRequestSearch('1');
+      }
+});
+function make_list(data) {
+    console.log("make_list")
+    str = '';
+    for (let i = 0; i < data.length; i++) {
+        const item = data[i];
+        console.log(item)
+        str += j_row_start();
+        str += j_col(6, item.title);
+        str += j_col(2, item.site_name);
+        str += j_col(2, item.datetime);
+        str += j_col(1, item.status);
+
+        tmp = ''
+        tmp += j_button('globalDbDeleteItemBtn', '삭제', {'id':data[i].id}, 'primary');
+        tmp += j_button('globalJsonBtn', '정보', {'idx':i}, 'primary');
+        tmp = j_button_group(tmp)
+        str += j_col(1, tmp, 'center')
+        str += j_row_end();
+        if (i != data.length -1) str += j_hr();
+    }
+    console.log(data);
+    $("#list_div").html(str);
+}
+</script>
+{% endblock %}

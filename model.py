@@ -1,6 +1,6 @@
 from .setup import *
 from sqlalchemy import and_, desc, func, not_, or_
-
+from datetime import datetime
 class ModelItem(ModelBase):
     P = P
     __tablename__ = 'delivery_tracking'
@@ -14,17 +14,44 @@ class ModelItem(ModelBase):
     status = db.Column(db.String)
     datetime = db.Column(db.DateTime)
     alarm_status = db.Column(db.Boolean)
+    tracking_location = db.Column(db.String)
 
     def __init__(self):
         self.created_time = datetime.now()
         self.alarm_status = False
     @classmethod
     def update(cls, data):
+        ret = {}
+
+        if 'datetime' in data:
+            if type(data['datetime']) == str:
+                try:
+                    data['datetime'] = datetime.strptime(data['datetime'], '%Y-%m-%d %H:%M:%S')
+                except Exception as e:
+                    data['datetime'] = datetime.strptime(data['datetime'], '%Y-%m-%d %H:%M')
+
         if 'id' in data:
             already_item = cls.get_by_id(data['id'])
         else:
             already_item = cls.get_by_track_no(data['track_no'])
-            ret = {}
+        if already_item:
+            db_item = already_item[0]
+            if data['status'] == db_item.status and '완료' in data['status']:
+                tracking_nos = P.ModelSetting.get(f'tracking_no_{db_item.site_name}').split(',')
+                if data['track_no'] in tracking_nos:
+                    tracking_nos.remove(data['track_no'])
+                    P.ModelSetting.set(f'tracking_no_{db_item.site_name}', ','.join(tracking_nos))
+                return {}
+            db_item.site_name = data['site_name']
+            db_item.title = data['title']
+            db_item.status = data['status']
+            db_item.datetime = data['datetime']
+            db_item.alarm_status = data.get('alarm_status', False)
+            db_item.tracking_location = data.get('tracking_location', '')
+            db_item.save()
+            ret['ret'] = 'success'
+            ret['msg'] = '업데이트 하였습니다.'
+        
         if not already_item:
             db_item = ModelItem()
             db_item.site_name = data['site_name']
@@ -33,6 +60,7 @@ class ModelItem(ModelBase):
             db_item.status = data['status']
             db_item.datetime = data['datetime']
             db_item.alarm_status = data.get('alarm_status', False)
+            db_item.tracking_location = data.get('tracking_location', '')
             db_item.save()
             ret['ret'] = 'success'
             ret['msg'] = '업데이트 하였습니다.'
@@ -66,6 +94,7 @@ class ModelItem(ModelBase):
         except Exception as e:
             cls.P.logger.error(f'Exception:{str(e)}')
             cls.P.logger.error(traceback.format_exc())
+        return None
     @classmethod
     def get_by_track_no(cls, track_no):
         try:
@@ -77,6 +106,7 @@ class ModelItem(ModelBase):
         except Exception as e:
             cls.P.logger.error(f'Exception:{str(e)}')
             cls.P.logger.error(traceback.format_exc())
+        return None
     @classmethod
     def make_query(cls, req, order='desc', search='', option1='all', option2='all'):
         with F.app.app_context():
@@ -95,3 +125,6 @@ class ModelItem(ModelBase):
                 query = query.order_by(cls.created_time)
 
             return query
+    @classmethod
+    def get_track_no(cls, site_name):
+        return P.ModelSetting.get(f'tracking_no_{site_name}')
