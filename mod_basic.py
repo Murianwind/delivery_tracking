@@ -215,9 +215,15 @@ class ModuleBasic(PluginModuleBase):
                 tracking['datetime'] = tracking[datetime_key['date']] + ' ' + tracking[datetime_key['time']]
         if 'time_format' in site_map[site_name]:
             if 'datetime' in info:
-                info['datetime'] = datetime.strptime(info['datetime'], site_map[site_name]['time_format'])
+                try:
+                    info['datetime'] = datetime.strptime(info['datetime'], site_map[site_name]['time_format'])
+                except Exception as e:
+                    info['datetime'] = datetime.strptime(info['datetime'], '%Y-%m-%d %H:%M')
             if 'datetime' in tracking:
-                tracking['datetime'] = datetime.strptime(tracking['datetime'], site_map[site_name]['time_format'])
+                try:
+                    tracking['datetime'] = datetime.strptime(tracking['datetime'], site_map[site_name]['time_format'])
+                except Exception as e:
+                    tracking['datetime'] = datetime.strptime(tracking['datetime'], '%Y-%m-%d %H:%M')
 
         if 'tracking_location' in tracking:
             tracking['tracking_location'] = tracking['tracking_location'].strip()
