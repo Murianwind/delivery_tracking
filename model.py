@@ -41,7 +41,10 @@ class ModelItem(ModelBase):
                 if data['track_no'] in tracking_nos:
                     tracking_nos.remove(data['track_no'])
                     P.ModelSetting.set(f'tracking_no_{db_item.site_name}', ','.join(tracking_nos))
-                return {}
+                return {'code' : 'remove'}
+            if db_item.status == data['status']:
+                return {'code' : 'skip'}
+
             db_item.site_name = data['site_name']
             db_item.title = data['title']
             db_item.status = data['status']
@@ -51,7 +54,7 @@ class ModelItem(ModelBase):
             db_item.save()
             ret['ret'] = 'success'
             ret['msg'] = '업데이트 하였습니다.'
-        
+            ret['code'] = 'update'
         if not already_item:
             db_item = ModelItem()
             db_item.site_name = data['site_name']
@@ -64,6 +67,7 @@ class ModelItem(ModelBase):
             db_item.save()
             ret['ret'] = 'success'
             ret['msg'] = '업데이트 하였습니다.'
+            ret['code'] = 'insert'
         else:
             ret['ret'] = 'error'
             ret['msg'] = '실패'

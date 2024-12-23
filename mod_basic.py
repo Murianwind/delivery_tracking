@@ -89,7 +89,7 @@ class ModuleBasic(PluginModuleBase):
     def __init__(self, P):
         super(ModuleBasic, self).__init__(P, name='basic', first_menu='setting', scheduler_desc="택배 발송 알리미")
         self.db_default = {
-            f'db_version' : '1.1',
+            f'db_version' : '1.0',
             f'{self.name}_auto_start': 'False',
             f'{self.name}_interval': '1',
             f'{self.name}_db_delete_day': '7',
@@ -106,7 +106,10 @@ class ModuleBasic(PluginModuleBase):
             f'tracking_no_경동택배' : '',
             f'tracking_no_한진택배' : '',
             f'tracking_no_우체국택배' : '',
-            f'tracking_no_롯데택배' : ''
+            f'tracking_no_롯데택배' : '',
+            'alarm_message_template' : '',
+            'alarm_message_template_start' : '',
+            'alarm_message_template_end' : ''
         }
         self.web_list_model = ModelItem
     def process_menu(self, sub, req):
@@ -160,23 +163,19 @@ class ModuleBasic(PluginModuleBase):
                     item_name = track_no
                 if item_name.strip() == '':
                     item_name = track_no
-                P.logger.info(str({
-                    'site_name': site_name,
-                    'title': item_name,
-                    'track_no': track_no,
-                    'status': tracking['tracking_status'] if 'tracking_status' in tracking else info['status'],
-                    'datetime': info['datetime'] if 'datetime' in info else tracking['datetime'],
-                    'tracking_location': tracking['tracking_location'] if 'tracking_location' in tracking else ''
-                }))
-                self.web_list_model.update({
-                    'site_name': site_name,
-                    'title': item_name,
-                    'track_no': track_no,
-                    'status': tracking['tracking_status'] if 'tracking_status' in tracking else info['status'],
-                    'datetime': info['datetime'] if 'datetime' in info else tracking['datetime'],
-                    'tracking_location': tracking['tracking_location'] if 'tracking_location' in tracking else ''
-                })
 
+                update_data = {
+                    'site_name': site_name,
+                    'title': item_name,
+                    'track_no': track_no,
+                    'status': tracking['tracking_status'] if 'tracking_status' in tracking else info['status'],
+                    'datetime': info['datetime'] if 'datetime' in info else tracking['datetime'],
+                    'tracking_location': tracking['tracking_location'] if 'tracking_location' in tracking else ''
+                }
+                update_result = self.web_list_model.update(update_data)
+                if 'code' in update_result:
+                    self.process_discord_data(update_data, update_result['code'])
+                        
     def process_with_summary_tracking(self, site_name, track_no):
         scraper = cloudscraper.create_scraper()
         
@@ -301,3 +300,34 @@ class ModuleBasic(PluginModuleBase):
 
         
         return tracking
+
+    def process_discord_data(self, update_data, update_result):
+        if P.ModelSetting.get_bool('use_delivery_tracking_alarm') is False or update_result == 'skip':
+            return
+        msg = ''
+
+        if update_result == 'remove':
+            msg = P.ModelSetting.get('alarm_message_template_end')
+            if msg == None or msg.strip() == '':
+                msg = '[상태 변경] '
+                msg += '배송이 완료되었습니다.'
+                msg += f"\n{update_data['title']} - {update_data['track_no']} - {update_data['status']} - {update_data['datetime']} - {update_data['tracking_location']}"
+            else:
+                msg = msg.format(**update_data)
+        elif update_result == 'insert':
+            msg = P.ModelSetting.get('alarm_message_template_start')
+            if msg == None or msg.strip() == '':
+                msg = '[상태 변경] '
+                msg += '배송 추적이 등록되었습니다.'
+                msg += f"\n{update_data['title']} - {update_data['track_no']} - {update_data['status']} - {update_data['datetime']} - {update_data['tracking_location']}"
+            else:
+                msg = msg.format(**update_data)
+        elif update_result == 'update':
+            msg = P.ModelSetting.get('alarm_message_template')
+            if msg == None or msg.strip() == '':
+                msg = '[상태 변경] '
+                msg += '배송 상태가 변경되었습니다.'
+                msg += f"\n{update_data['title']} - {update_data['track_no']} - {update_data['status']} - {update_data['datetime']} - {update_data['tracking_location']}"
+            else:
+                msg = msg.format(**update_data)
+        ToolNotify.send_message(msg,message_id = f'bot_delivery_tracking_alarm')
