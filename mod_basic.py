@@ -89,7 +89,7 @@ class ModuleBasic(PluginModuleBase):
     def __init__(self, P):
         super(ModuleBasic, self).__init__(P, name='basic', first_menu='setting', scheduler_desc="택배 발송 알리미")
         self.db_default = {
-            f'db_version' : '1.0',
+            f'db_version' : '1.1',
             f'{self.name}_auto_start': 'False',
             f'{self.name}_interval': '1',
             f'{self.name}_db_delete_day': '7',
