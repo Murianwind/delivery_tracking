@@ -49,7 +49,7 @@ site_map = {
     '한진택배' : {
         'url' : 'https://www.hanjin.com/kor/CMS/DeliveryMgr/WaybillResult.do?mCode=MN038&schLang=KR&wblnumText2={track_no}',
         'type' : 'html',
-        'regex_info' : r'<p class=\"cal-sec\"><span class=\"date\">(?P<date>[\d\-]{10})</span>\s<span class=\"time\">(?P<time>[\d\:]{5})</span></p>[\W\S]+?<strong>(?P<status>\w+)</strong>[\W\S]+?data-label=\"상품명\">(?P<item_name>[\w]*)</td>\s+<td data-label=\"보내는 분\">(?P<from>.+)</td>\s+<td data-label=\"받는 분\">(?P<to>.+)',
+        'regex_info' : r'<p class=\"cal-sec\"><span class=\"date\">(?P<date>[\d\-]{10})</span>\s<span class=\"time\">(?P<time>[\d\:]{5})</span></p>[\W\S]+?<strong>(?P<status>\w+)</strong>[\W\S]+?data-label=\"상품명\">(?P<item_name>.*)</td>\s+<td data-label=\"보내는 분\">(?P<from>.+)</td>\s+<td data-label=\"받는 분\">(?P<to>.+)',
         'datetime_key' : {
             'date' : 'date',
             'time' : 'time'
