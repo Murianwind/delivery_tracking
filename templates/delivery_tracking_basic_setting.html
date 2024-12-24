@@ -28,7 +28,7 @@
        
     {{ macros.m_tab_content_end() }} 
     {{ macros.m_tab_content_start('alarm', false) }} 
-    {{ macros.setting_checkbox('use_delivery_tracking_alarm', '전체 알람 사용', desc='메시지 ID : bot_delivery_tracking_alarm', value=arg['use_delivery_tracking_alarm']) }}
+    {{ macros.setting_checkbox('use_delivery_tracking_alarm', '알람 사용', desc='메시지 ID : bot_delivery_tracking_alarm', value=arg['use_delivery_tracking_alarm']) }}
 
     {{ macros.setting_input_textarea('alarm_message_template_start', '추적 등록 메시지', value=arg['alarm_message_template_start'], row=10, desc=['빈 칸인 경우 기본 템플릿으로 알람이 울립니다.','아래 키워드들을 사용하실 수 있습니다.', '{site_name} : 택배사 명 (ex) 대한통운', '{track_no} : 송장번호', '{status} : 배송 상태 (ex) 배송중', '{datetime} : 상태 변경 시간', '{tracking_location} : 배송 위치 (ex) 옥천HUB']) }}
     {{ macros.setting_input_textarea('alarm_message_template', '상태 변경 메시지', value=arg['alarm_message_template'], row=10, desc=['빈 칸인 경우 기본 템플릿으로 알람이 울립니다.','아래 키워드들을 사용하실 수 있습니다.', '{site_name} : 택배사 명 (ex) 대한통운', '{track_no} : 송장번호', '{status} : 배송 상태 (ex) 배송중', '{datetime} : 상태 변경 시간', '{tracking_location} : 배송 위치 (ex) 옥천HUB']) }}
