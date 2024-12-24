@@ -157,103 +157,139 @@ class ModuleBasic(PluginModuleBase):
     
     
     def scrap_items(self):
-        ret = {
-            'status': 'success',
-            'data': []
-        }
-        P.logger.info("scrap_items")
-        sess = requests.session()
-        sites = [key.split('_')[-1] for key in list(self.db_default.keys()) if key.startswith('use_site_')]
-        use_delivery_sites = [key.split('_')[-1] for key in sites if P.ModelSetting.get(f'use_site_{key}') == 'True']
+        try:
+            ret = {
+                'status': 'success',
+                'data': []
+            }
+            sites = [key.split('_')[-1] for key in list(self.db_default.keys()) if key.startswith('use_site_')]
+            use_delivery_sites = [key.split('_')[-1] for key in sites if P.ModelSetting.get(f'use_site_{key}') == 'True']
 
-        for site_name in use_delivery_sites:
-            if site_name not in site_map:
-                continue
-            
-            track_nos = ModelItem.get_track_no(site_name).replace(' ','').split(',')
-            if not track_nos[0]:
-                continue
-            
-            for track_no in track_nos:
-                if 'summary' in site_map[site_name]:
-                    info, tracking = self.process_with_summary_tracking(site_name, track_no)
-                else:
-                    info, tracking = self.process_without_summary_tracking(site_name, track_no)
-                if 'item_name' in info or 'item_name' in tracking:
-                    item_name = info['item_name'] if 'item_name' in info else tracking['item_name']
-                else:
-                    item_name = track_no
-                if item_name.strip() == '':
-                    item_name = track_no
+            for site_name in use_delivery_sites:
+                try:
+                    if site_name not in site_map:
+                        continue
+                    
+                    track_nos = ModelItem.get_track_no(site_name).replace(' ','').split(',')
+                    if not track_nos[0]:
+                        continue
+                    
+                    for track_no in track_nos:
+                        try:
+                            if 'summary' in site_map[site_name]:
+                                info, tracking = self.process_with_summary_tracking(site_name, track_no)
+                            else:
+                                info, tracking = self.process_without_summary_tracking(site_name, track_no)
 
-                update_data = {
-                    'site_name': site_name,
-                    'title': item_name,
-                    'track_no': track_no,
-                    'status': tracking['tracking_status'] if 'tracking_status' in tracking else info['status'],
-                    'datetime': info['datetime'] if 'datetime' in info else tracking['datetime'],
-                    'tracking_location': tracking['tracking_location'] if 'tracking_location' in tracking else ''
-                }
-                P.logger.info(info)
-                P.logger.info(tracking)
-                update_result = self.web_list_model.update(update_data)
-                if 'code' in update_result:
-                    self.process_discord_data(update_data, update_result['code'])
-                        
+                            if info is None or tracking is None:
+                                continue
+
+                            if 'item_name' in info or 'item_name' in tracking:
+                                item_name = info['item_name'] if 'item_name' in info else tracking['item_name']
+                            else:
+                                item_name = track_no
+                            if item_name.strip() == '':
+                                item_name = track_no
+
+                            update_data = {
+                                'site_name': site_name,
+                                'title': item_name,
+                                'track_no': track_no,
+                                'status': tracking['tracking_status'] if 'tracking_status' in tracking else info['status'],
+                                'datetime': info['datetime'] if 'datetime' in info else tracking['datetime'],
+                                'tracking_location': tracking['tracking_location'] if 'tracking_location' in tracking else ''
+                            }
+                            update_result = self.web_list_model.update(update_data)
+                            if 'code' in update_result:
+                                self.process_discord_data(update_data, update_result['code'])
+                        except Exception as e:
+                            P.logger.error(f'택배 추적 중 오류 발생 - {site_name} / {track_no}: {str(e)}')
+                            P.logger.error(traceback.format_exc())
+                except Exception as e:
+                    P.logger.error(f'사이트 처리 중 오류 발생 - {site_name}: {str(e)}')
+                    P.logger.error(traceback.format_exc())
+        except Exception as e:
+            P.logger.error(f'전체 스크래핑 중 오류 발생: {str(e)}')
+            P.logger.error(traceback.format_exc())
+
     def process_with_summary_tracking(self, site_name, track_no):
-        scraper = cloudscraper.create_scraper()
-        
-        # 1. Summary 처리
-        summary_info = self.get_summary_info(scraper, site_name, track_no)
-        
-        # 2. Tracking 처리
-        tracking_info = self.get_tracking_info(scraper, site_name, track_no)
-        
-        return summary_info, tracking_info
+        try:
+            scraper = cloudscraper.create_scraper()
+            
+            summary_info = self.get_summary_info(scraper, site_name, track_no)
+            tracking_info = self.get_tracking_info(scraper, site_name, track_no)
+            
+            return summary_info, tracking_info
+        except Exception as e:
+            P.logger.error(f'Summary/Tracking 처리 중 오류 발생 - {site_name} / {track_no}: {str(e)}')
+            P.logger.error(traceback.format_exc())
+            return None, None
 
     def process_without_summary_tracking(self, site_name, track_no):
-        scraper = cloudscraper.create_scraper()
-        site_url = site_map[site_name]['url']
-        
-        response = scraper.get(site_url.format(track_no=track_no))
-        response = response.text
-        
-        info = None
-        tracking = None
+        try:
+            scraper = cloudscraper.create_scraper()
+            site_url = site_map[site_name]['url']
+            
+            response = scraper.get(site_url.format(track_no=track_no))
+            response = response.text
+            
+            info = None
+            tracking = None
 
-        if 'regex_info' in site_map[site_name]:
-            info = re.search(site_map[site_name]['regex_info'], response).groupdict()
-        if 'regex_tracking' in site_map[site_name]:
-            matches = list(re.finditer(site_map[site_name]['regex_tracking'], response))
-            if matches:
-                if site_map[site_name]['order'] == 'desc':
-                    tracking = matches[0].groupdict()
-                else:
-                    tracking = matches[-1].groupdict()
-
-        if 'datetime_key' in site_map[site_name]:
-            datetime_key = site_map[site_name]['datetime_key']
-            if datetime_key['date'] in info and datetime_key['time'] in info:
-                info['datetime'] = info[datetime_key['date']] + ' ' + info[datetime_key['time']]
-            elif datetime_key['date'] in tracking and datetime_key['time'] in tracking:
-                tracking['datetime'] = tracking[datetime_key['date']] + ' ' + tracking[datetime_key['time']]
-        if 'time_format' in site_map[site_name]:
-            if 'datetime' in info:
+            if 'regex_info' in site_map[site_name]:
                 try:
-                    info['datetime'] = datetime.strptime(info['datetime'].split('.')[0], site_map[site_name]['time_format'])
+                    info = re.search(site_map[site_name]['regex_info'], response)
+                    if info:
+                        info = info.groupdict()
                 except Exception as e:
-                    info['datetime'] = datetime.strptime(info['datetime'].split('.')[0], '%Y-%m-%d %H:%M')
-            if 'datetime' in tracking:
+                    P.logger.error(f'정규식(info) 처리 중 오류 발생: {str(e)}')
+                    
+            if 'regex_tracking' in site_map[site_name]:
                 try:
-                    tracking['datetime'] = datetime.strptime(tracking['datetime'].split('.')[0], site_map[site_name]['time_format'])
+                    matches = list(re.finditer(site_map[site_name]['regex_tracking'], response))
+                    if matches:
+                        if site_map[site_name]['order'] == 'desc':
+                            tracking = matches[0].groupdict()
+                        else:
+                            tracking = matches[-1].groupdict()
                 except Exception as e:
-                    tracking['datetime'] = datetime.strptime(tracking['datetime'].split('.')[0], '%Y-%m-%d %H:%M')
+                    P.logger.error(f'정규식(tracking) 처리 중 오류 발생: {str(e)}')
 
-        if 'tracking_location' in tracking:
-            tracking['tracking_location'] = tracking['tracking_location'].strip()
-            tracking['tracking_location'] = re.sub(r'<[^>]*>', '', tracking['tracking_location'])
+            if info or tracking:
+                self.process_datetime(site_name, info, tracking)
+                if tracking and 'tracking_location' in tracking:
+                    tracking['tracking_location'] = tracking['tracking_location'].strip()
+                    tracking['tracking_location'] = re.sub(r'<[^>]*>', '', tracking['tracking_location'])
 
-        return info, tracking
+            return info, tracking
+        except Exception as e:
+            P.logger.error(f'택배 추적 처리 중 오류 발생 - {site_name} / {track_no}: {str(e)}')
+            P.logger.error(traceback.format_exc())
+            return None, None
+
+    def process_datetime(self, site_name, info, tracking):
+        try:
+            if 'datetime_key' in site_map[site_name]:
+                datetime_key = site_map[site_name]['datetime_key']
+                if info and datetime_key['date'] in info and datetime_key['time'] in info:
+                    info['datetime'] = info[datetime_key['date']] + ' ' + info[datetime_key['time']]
+                elif tracking and datetime_key['date'] in tracking and datetime_key['time'] in tracking:
+                    tracking['datetime'] = tracking[datetime_key['date']] + ' ' + tracking[datetime_key['time']]
+
+            if 'time_format' in site_map[site_name]:
+                if info and 'datetime' in info:
+                    try:
+                        info['datetime'] = datetime.strptime(info['datetime'].split('.')[0], site_map[site_name]['time_format'])
+                    except:
+                        info['datetime'] = datetime.strptime(info['datetime'].split('.')[0], '%Y-%m-%d %H:%M')
+                if tracking and 'datetime' in tracking:
+                    try:
+                        tracking['datetime'] = datetime.strptime(tracking['datetime'].split('.')[0], site_map[site_name]['time_format'])
+                    except:
+                        tracking['datetime'] = datetime.strptime(tracking['datetime'].split('.')[0], '%Y-%m-%d %H:%M')
+        except Exception as e:
+            P.logger.error(f'날짜/시간 처리 중 오류 발생: {str(e)}')
+            P.logger.error(traceback.format_exc())
 
     def get_summary_info(self, scraper, site_name, track_no):
         site_config = site_map[site_name]['summary']
