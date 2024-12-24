@@ -43,8 +43,26 @@ site_map = {
         'type' : 'json',
     },
     '경동택배' : {
-        'url' : 'https://kdexp.com/service/delivery/ajax_basic.do?barcode={track_no}',
-        'type' : 'json'
+        'summary' : {
+            'url' : 'https://kdexp.com/service/delivery/ajax_basic.do?barcode={track_no}',
+            'result_key' : {
+                'info.branch_start' : 'from',
+                'info.branch_end' : 'to',
+                'info.prod' : 'item_name',
+                'info.pd_dt' : 'datetime'
+            }
+        },
+        'tracking' : {
+            'url' : 'https://kdexp.com/service/delivery/ajax_basic.do?barcode={track_no}',
+            'result_key' : {
+                'items' : "tracking_list"
+            }, 
+            'datetime_key' : "reg_date",
+            'status_key' : 'stat',
+            'tracking_location_key' : 'location'
+        },
+        'type' : 'json',
+        'time_format' : "%Y-%m-%d %H:%M:%S"
     },
     '한진택배' : {
         'url' : 'https://www.hanjin.com/kor/CMS/DeliveryMgr/WaybillResult.do?mCode=MN038&schLang=KR&wblnumText2={track_no}',
@@ -89,7 +107,7 @@ class ModuleBasic(PluginModuleBase):
     def __init__(self, P):
         super(ModuleBasic, self).__init__(P, name='basic', first_menu='setting', scheduler_desc="택배 발송 알리미")
         self.db_default = {
-            f'db_version' : '1.1',
+            f'db_version' : '1.0',
             f'{self.name}_auto_start': 'False',
             f'{self.name}_interval': '1',
             f'{self.name}_db_delete_day': '7',
@@ -128,6 +146,10 @@ class ModuleBasic(PluginModuleBase):
             ret['status'] = 'warn'
             ret['title'] = '테스트'
             ret['data'] = '테스트 내용'
+        elif command == 'rename':
+            id = arg1
+            new_name = arg2
+            self.web_list_model.update({'id':id, 'title':new_name})
         return jsonify(ret)
 
     def scheduler_function(self):
@@ -172,6 +194,8 @@ class ModuleBasic(PluginModuleBase):
                     'datetime': info['datetime'] if 'datetime' in info else tracking['datetime'],
                     'tracking_location': tracking['tracking_location'] if 'tracking_location' in tracking else ''
                 }
+                P.logger.info(info)
+                P.logger.info(tracking)
                 update_result = self.web_list_model.update(update_data)
                 if 'code' in update_result:
                     self.process_discord_data(update_data, update_result['code'])
@@ -196,7 +220,7 @@ class ModuleBasic(PluginModuleBase):
         
         info = None
         tracking = None
-        
+
         if 'regex_info' in site_map[site_name]:
             info = re.search(site_map[site_name]['regex_info'], response).groupdict()
         if 'regex_tracking' in site_map[site_name]:
@@ -216,14 +240,14 @@ class ModuleBasic(PluginModuleBase):
         if 'time_format' in site_map[site_name]:
             if 'datetime' in info:
                 try:
-                    info['datetime'] = datetime.strptime(info['datetime'], site_map[site_name]['time_format'])
+                    info['datetime'] = datetime.strptime(info['datetime'].split('.')[0], site_map[site_name]['time_format'])
                 except Exception as e:
-                    info['datetime'] = datetime.strptime(info['datetime'], '%Y-%m-%d %H:%M')
+                    info['datetime'] = datetime.strptime(info['datetime'].split('.')[0], '%Y-%m-%d %H:%M')
             if 'datetime' in tracking:
                 try:
-                    tracking['datetime'] = datetime.strptime(tracking['datetime'], site_map[site_name]['time_format'])
+                    tracking['datetime'] = datetime.strptime(tracking['datetime'].split('.')[0], site_map[site_name]['time_format'])
                 except Exception as e:
-                    tracking['datetime'] = datetime.strptime(tracking['datetime'], '%Y-%m-%d %H:%M')
+                    tracking['datetime'] = datetime.strptime(tracking['datetime'].split('.')[0], '%Y-%m-%d %H:%M')
 
         if 'tracking_location' in tracking:
             tracking['tracking_location'] = tracking['tracking_location'].strip()
@@ -237,24 +261,25 @@ class ModuleBasic(PluginModuleBase):
         
         if method == 'get':
             response = scraper.get(site_config['url'].format(track_no=track_no))
-            return response.text
         else:
             req_data = json.dumps(site_config['data'])
             req_data = req_data.replace('{track_no}', track_no)
             req_data = json.loads(req_data)
             response = scraper.post(site_config['url'], data=req_data)
-            response_data = response.json()
-            
-            if 'result_key' in site_config:
-                info = {}
-                for key, value in site_config['result_key'].items():
-                    if '.' in key:
-                        key_split = key.split('.')
-                        info[value] = response_data[key_split[0]][key_split[1]]
-                    else:
-                        info[value] = response_data[key]
-                return info
-            return response_data
+        response_data = response.json()
+        
+        if 'result_key' in site_config:
+            info = {}
+            for key, value in site_config['result_key'].items():
+                if '.' in key:
+                    key_split = key.split('.')
+                    info[value] = response_data[key_split[0]][key_split[1]]
+                else:
+                    info[value] = response_data[key]
+                if value == 'datetime':
+                    info['datetime'] = info['datetime'].split('.')[0]
+            return info
+        return response_data
 
     def get_tracking_info(self, scraper, site_name, track_no):
         site_config = site_map[site_name]['tracking']
@@ -262,16 +287,15 @@ class ModuleBasic(PluginModuleBase):
         
         if method == 'get':
             response = scraper.get(site_config['url'].format(track_no=track_no))
-            return response.text
         else:
             req_data = json.dumps(site_config['data'])
             req_data = req_data.replace('{track_no}', track_no)
             req_data = json.loads(req_data)
             response = scraper.post(site_config['url'], data=req_data)
-            response_data = response.json()
-            
-            tracking = self.process_tracking_response(site_name, response_data)
-            return tracking
+        response_data = response.json()
+        
+        tracking = self.process_tracking_response(site_name, response_data)
+        return tracking
 
     def process_tracking_response(self, site_name, response_data):
         site_config = site_map[site_name]['tracking']
@@ -287,7 +311,10 @@ class ModuleBasic(PluginModuleBase):
         
         if 'datetime_key' in site_config:
             datetime_key = site_config['datetime_key']
-            tracking['datetime'] = tracking[datetime_key['date']] + ' ' + tracking[datetime_key['time']]
+            if type(datetime_key) == str:
+                tracking['datetime'] = tracking[datetime_key].split('.')[0]
+            elif type(datetime_key) == dict:
+                tracking['datetime'] = tracking[datetime_key['date']] + ' ' + tracking[datetime_key['time'].split('.')[0]]
         
         if 'status_key' in site_config:
             tracking['tracking_status'] = tracking[site_config['status_key']]

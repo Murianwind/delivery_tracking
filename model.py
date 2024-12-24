@@ -32,6 +32,11 @@ class ModelItem(ModelBase):
 
         if 'id' in data:
             already_item = cls.get_by_id(data['id'])
+            if 'status' not in data and 'title' in data:
+                already_item[0].title = data['title']
+                already_item[0].save()
+                return {'code' : 'rename'}
+
         else:
             already_item = cls.get_by_track_no(data['track_no'])
         if already_item:

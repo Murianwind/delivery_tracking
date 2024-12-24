@@ -15,14 +15,6 @@
                     <option value="{{site}}">{{site}}</option>
                 {% endfor %}
             </select>
-            <select id="option2" name="option2" class="form-control form-control-sm">
-              <option value="all">배송상태 전체</option>
-            {% for status in status_list %}
-                <option value="{{status}}">{{status}}</option>
-            {% endfor %}
-  
-  
-            </select>
         </span>
         <span class="col-md-6">
           <input id="keyword" name="keyword" class="form-control form-control-sm w-75" type="text" placeholder="" aria-label="Search">
@@ -63,14 +55,13 @@ function make_list(data) {
     str = '';
     for (let i = 0; i < data.length; i++) {
         const item = data[i];
-        console.log(item)
         str += j_row_start();
         str += j_col(6, item.title);
         str += j_col(2, item.site_name);
         str += j_col(2, item.datetime);
         str += j_col(1, item.status);
-
         tmp = ''
+        tmp += j_button('nameChangeBtn', '이름 변경', {'name':data[i].title,'id':data[i].id}, 'primary');
         tmp += j_button('globalDbDeleteItemBtn', '삭제', {'id':data[i].id}, 'primary');
         tmp += j_button('globalJsonBtn', '정보', {'idx':i}, 'primary');
         tmp = j_button_group(tmp)
@@ -81,5 +72,15 @@ function make_list(data) {
     console.log(data);
     $("#list_div").html(str);
 }
+
+$(document).on('click', '#nameChangeBtn', function() {
+    let name = $(this).data('name');
+    let id = $(this).data('id');
+    let new_name = prompt('새로운 이름을 입력하세요', name);
+    if (new_name) {
+        globalSendCommand('rename', id, new_name);
+        location.reload();
+    }
+});
 </script>
 {% endblock %}
