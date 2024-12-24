@@ -342,7 +342,7 @@ class ModuleBasic(PluginModuleBase):
         if update_result == 'remove':
             msg = P.ModelSetting.get('alarm_message_template_end')
             if msg == None or msg.strip() == '':
-                msg = '[상태 변경] '
+                msg = '[추적 완료] '
                 msg += '배송이 완료되었습니다.'
                 msg += f"\n{update_data['title']} - {update_data['track_no']} - {update_data['status']} - {update_data['datetime']} - {update_data['tracking_location']}"
             else:
@@ -350,7 +350,7 @@ class ModuleBasic(PluginModuleBase):
         elif update_result == 'insert':
             msg = P.ModelSetting.get('alarm_message_template_start')
             if msg == None or msg.strip() == '':
-                msg = '[상태 변경] '
+                msg = '[추적 시작] '
                 msg += '배송 추적이 등록되었습니다.'
                 msg += f"\n{update_data['title']} - {update_data['track_no']} - {update_data['status']} - {update_data['datetime']} - {update_data['tracking_location']}"
             else:
@@ -363,4 +363,6 @@ class ModuleBasic(PluginModuleBase):
                 msg += f"\n{update_data['title']} - {update_data['track_no']} - {update_data['status']} - {update_data['datetime']} - {update_data['tracking_location']}"
             else:
                 msg = msg.format(**update_data)
+        # msg에서 <strong> 태그를 *로 변경
+        msg = re.sub(r'<strong>(.*?)</strong>', r'*\1*', msg)
         ToolNotify.send_message(msg,message_id = f'bot_delivery_tracking_alarm')
