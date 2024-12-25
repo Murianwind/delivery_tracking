@@ -99,6 +99,18 @@ site_map = {
         },
         'time_format' : '%Y-%m-%d %H:%M',
         'order' : 'desc'
+    },
+    '로젠택배' : {
+        'url' : 'https://www.ilogen.com/m/personal/trace/{track_no}',
+        'type' : 'html',
+        'regex_info' : r'<th>보내시는 분</th>\s+<td>(?P<from>.+)</td>\s+</tr>\s+<tr>\s+<th>받으시는 분</th>\s+<td>(?P<to>.+)</td>\s+</tr>\s+<tr>\s+<th>상품명</th>\s+<td>(?P<item_name>.+)</td>[\W\S]+<th>최종처리시간</th>\s+<td>(?P<date>[\d\.]{10})\s+(?P<time>[\d\:]{5})\s+(?P<status>.+)</td>',
+        'regex_tracking' : r'<tr>\s+<td>(?P<date>[\d\.]{10})\s+(?P<time>[\d\:]{5})</td>\s+<td>\s+(?P<tracking_status>.+)\s+</td>\s+<td>[\w\<\>\=\"\#\/\:\-\s]+?</tr>\s+</tbody>\s+</table>[\W\S]+?<th>최종처리 사업장</th>\s+<td>(?P<tracking_location>.+)</td>',
+        'datetime_key' : {
+            'date' : 'date',
+            'time' : 'time'
+        },
+        'time_format' : '%Y.%m.%d %H:%M',
+        'order' : 'asc'
     }
 }
 
@@ -107,7 +119,7 @@ class ModuleBasic(PluginModuleBase):
     def __init__(self, P):
         super(ModuleBasic, self).__init__(P, name='basic', first_menu='setting', scheduler_desc="택배 발송 알리미")
         self.db_default = {
-            f'db_version' : '1.0',
+            f'db_version' : '1.2',
             f'{self.name}_auto_start': 'False',
             f'{self.name}_interval': '1',
             f'{self.name}_db_delete_day': '7',
@@ -120,11 +132,13 @@ class ModuleBasic(PluginModuleBase):
             f'use_site_한진택배' : 'True',
             f'use_site_우체국택배' : 'True',
             f'use_site_롯데택배' : 'True',
+            f'use_site_로젠택배' : 'True',
             f'tracking_no_대한통운' : '',
             f'tracking_no_경동택배' : '',
             f'tracking_no_한진택배' : '',
             f'tracking_no_우체국택배' : '',
             f'tracking_no_롯데택배' : '',
+            f'tracking_no_로젠택배' : '',
             'alarm_message_template' : '',
             'alarm_message_template_start' : '',
             'alarm_message_template_end' : ''
@@ -279,12 +293,12 @@ class ModuleBasic(PluginModuleBase):
             if 'time_format' in site_map[site_name]:
                 if info and 'datetime' in info:
                     try:
-                        info['datetime'] = datetime.strptime(info['datetime'].split('.')[0], site_map[site_name]['time_format'])
+                        info['datetime'] = datetime.strptime(info['datetime'], site_map[site_name]['time_format'])
                     except:
                         info['datetime'] = datetime.strptime(info['datetime'].split('.')[0], '%Y-%m-%d %H:%M')
                 if tracking and 'datetime' in tracking:
                     try:
-                        tracking['datetime'] = datetime.strptime(tracking['datetime'].split('.')[0], site_map[site_name]['time_format'])
+                        tracking['datetime'] = datetime.strptime(tracking['datetime'], site_map[site_name]['time_format'])
                     except:
                         tracking['datetime'] = datetime.strptime(tracking['datetime'].split('.')[0], '%Y-%m-%d %H:%M')
         except Exception as e:
