@@ -41,7 +41,7 @@ class ModelItem(ModelBase):
             already_item = cls.get_by_track_no(data['track_no'])
         if already_item:
             db_item = already_item[0]
-            if data['status'] == db_item.status and '완료' in data['status']:
+            if data['status'] == db_item.status and ('완료' in data['status'] or '고객님께 물품을 전달' in data['status'] ):
                 tracking_nos = P.ModelSetting.get(f'tracking_no_{db_item.site_name}').split(',')
                 if data['track_no'] in tracking_nos:
                     tracking_nos.remove(data['track_no'])
@@ -51,7 +51,7 @@ class ModelItem(ModelBase):
                 return {'code' : 'skip'}
 
             db_item.site_name = data['site_name']
-            db_item.title = data['title']
+            # db_item.title = data['title']
             db_item.status = data['status']
             db_item.datetime = data['datetime']
             db_item.alarm_status = data.get('alarm_status', False)
