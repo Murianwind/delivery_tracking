@@ -210,7 +210,7 @@ class ModuleBasic(PluginModuleBase):
                                 'title': item_name,
                                 'track_no': track_no,
                                 'status': tracking['tracking_status'] if 'tracking_status' in tracking else info['status'],
-                                'datetime': info['datetime'] if 'datetime' in info else tracking['datetime'],
+                                'datetime': info.get('datetime', tracking.get('datetime', datetime.now().strftime('%Y-%m-%d %H:%M'))),
                                 'tracking_location': tracking['tracking_location'] if 'tracking_location' in tracking else ''
                             }
                             update_result = self.web_list_model.update(update_data)
