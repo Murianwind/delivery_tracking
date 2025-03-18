@@ -285,22 +285,28 @@ class ModuleBasic(PluginModuleBase):
         try:
             if 'datetime_key' in site_map[site_name]:
                 datetime_key = site_map[site_name]['datetime_key']
-                if info and datetime_key['date'] in info and datetime_key['time'] in info:
+                if info and datetime_key['date'] in info and datetime_key['time'] in info and info[datetime_key['date']] and info[datetime_key['time']]:
                     info['datetime'] = info[datetime_key['date']] + ' ' + info[datetime_key['time']]
-                elif tracking and datetime_key['date'] in tracking and datetime_key['time'] in tracking:
+                elif tracking and datetime_key['date'] in tracking and datetime_key['time'] in tracking and tracking[datetime_key['date']] and tracking[datetime_key['time']]:
                     tracking['datetime'] = tracking[datetime_key['date']] + ' ' + tracking[datetime_key['time']]
 
             if 'time_format' in site_map[site_name]:
-                if info and 'datetime' in info:
+                if info and 'datetime' in info and info['datetime']:
                     try:
                         info['datetime'] = datetime.strptime(info['datetime'], site_map[site_name]['time_format'])
                     except:
-                        info['datetime'] = datetime.strptime(info['datetime'].split('.')[0], '%Y-%m-%d %H:%M')
-                if tracking and 'datetime' in tracking:
+                        try:
+                            info['datetime'] = datetime.strptime(info['datetime'].split('.')[0], '%Y-%m-%d %H:%M')
+                        except:
+                            info['datetime'] = datetime.now()
+                if tracking and 'datetime' in tracking and tracking['datetime']:
                     try:
                         tracking['datetime'] = datetime.strptime(tracking['datetime'], site_map[site_name]['time_format'])
                     except:
-                        tracking['datetime'] = datetime.strptime(tracking['datetime'].split('.')[0], '%Y-%m-%d %H:%M')
+                        try:
+                            tracking['datetime'] = datetime.strptime(tracking['datetime'].split('.')[0], '%Y-%m-%d %H:%M')
+                        except:
+                            tracking['datetime'] = datetime.now()
         except Exception as e:
             P.logger.error(f'날짜/시간 처리 중 오류 발생: {str(e)}')
             P.logger.error(traceback.format_exc())
@@ -323,10 +329,19 @@ class ModuleBasic(PluginModuleBase):
             for key, value in site_config['result_key'].items():
                 if '.' in key:
                     key_split = key.split('.')
-                    info[value] = response_data[key_split[0]][key_split[1]]
+                    if key_split[0] in response_data and response_data[key_split[0]] is not None:
+                        if key_split[1] in response_data[key_split[0]]:
+                            info[value] = response_data[key_split[0]][key_split[1]]
+                        else:
+                            info[value] = ""
+                    else:
+                        info[value] = ""
                 else:
-                    info[value] = response_data[key]
-                if value == 'datetime':
+                    if key in response_data:
+                        info[value] = response_data[key]
+                    else:
+                        info[value] = ""
+                if value == 'datetime' and info[value]:
                     info['datetime'] = info['datetime'].split('.')[0]
             return info
         return response_data
@@ -342,10 +357,15 @@ class ModuleBasic(PluginModuleBase):
             req_data = req_data.replace('{track_no}', track_no)
             req_data = json.loads(req_data)
             response = scraper.post(site_config['url'], data=req_data)
-        response_data = response.json()
         
-        tracking = self.process_tracking_response(site_name, response_data)
-        return tracking
+        try:
+            response_data = response.json()
+            tracking = self.process_tracking_response(site_name, response_data)
+            return tracking
+        except Exception as e:
+            P.logger.error(f'트래킹 정보 처리 중 오류 발생 - {site_name} / {track_no}: {str(e)}')
+            P.logger.error(traceback.format_exc())
+            return {}
 
     def process_tracking_response(self, site_name, response_data):
         site_config = site_map[site_name]['tracking']
@@ -355,9 +375,26 @@ class ModuleBasic(PluginModuleBase):
             for key, value in site_config['result_key'].items():
                 if '.' in key:
                     key_split = key.split('.')
-                    tracking = response_data[key_split[0]][key_split[1]][-1] if len(response_data[key_split[0]][key_split[1]]) > 0 else {}
+                    if key_split[0] in response_data and response_data[key_split[0]] is not None:
+                        if key_split[1] in response_data[key_split[0]]:
+                            items = response_data[key_split[0]][key_split[1]]
+                            if items and len(items) > 0:
+                                tracking = items[-1]
+                            else:
+                                tracking = {}
+                        else:
+                            tracking = {}
+                    else:
+                        tracking = {}
                 else:
-                    tracking = response_data[key][-1] if len(response_data[key]) > 0 else {}
+                    if key in response_data and response_data[key] is not None:
+                        items = response_data[key]
+                        if items and len(items) > 0:
+                            tracking = items[-1]
+                        else:
+                            tracking = {}
+                    else:
+                        tracking = {}
         
         if tracking is None:
             tracking = {}
@@ -365,10 +402,10 @@ class ModuleBasic(PluginModuleBase):
         if 'datetime_key' in site_config:
             datetime_key = site_config['datetime_key']
             if type(datetime_key) == str:
-                if datetime_key in tracking:
+                if datetime_key in tracking and tracking[datetime_key]:
                     tracking['datetime'] = tracking[datetime_key].split('.')[0]
             elif type(datetime_key) == dict:
-                if datetime_key['date'] in tracking and datetime_key['time'] in tracking:
+                if datetime_key['date'] in tracking and datetime_key['time'] in tracking and tracking[datetime_key['date']] and tracking[datetime_key['time']]:
                     tracking['datetime'] = tracking[datetime_key['date']] + ' ' + tracking[datetime_key['time']].split('.')[0]
         
         if 'status_key' in site_config:
