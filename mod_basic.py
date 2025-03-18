@@ -209,9 +209,9 @@ class ModuleBasic(PluginModuleBase):
                                 'site_name': site_name,
                                 'title': item_name,
                                 'track_no': track_no,
-                                'status': tracking['tracking_status'] if 'tracking_status' in tracking else info['status'],
+                                'status': tracking.get('tracking_status', info.get('status', '상태정보없음')),
                                 'datetime': info.get('datetime', tracking.get('datetime', datetime.now().strftime('%Y-%m-%d %H:%M'))),
-                                'tracking_location': tracking['tracking_location'] if 'tracking_location' in tracking else ''
+                                'tracking_location': tracking.get('tracking_location', '')
                             }
                             update_result = self.web_list_model.update(update_data)
                             if 'code' in update_result:
