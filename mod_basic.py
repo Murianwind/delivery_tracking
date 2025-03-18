@@ -355,33 +355,43 @@ class ModuleBasic(PluginModuleBase):
             for key, value in site_config['result_key'].items():
                 if '.' in key:
                     key_split = key.split('.')
-                    tracking = response_data[key_split[0]][key_split[1]][-1] if len(response_data[key_split[0]][key_split[1]]) > 0 else None
+                    tracking = response_data[key_split[0]][key_split[1]][-1] if len(response_data[key_split[0]][key_split[1]]) > 0 else {}
                 else:
-                    tracking = response_data[key][-1] if len(response_data[key]) > 0 else None
+                    tracking = response_data[key][-1] if len(response_data[key]) > 0 else {}
         
+        if tracking is None:
+            tracking = {}
+            
         if 'datetime_key' in site_config:
             datetime_key = site_config['datetime_key']
             if type(datetime_key) == str:
-                tracking['datetime'] = tracking[datetime_key].split('.')[0]
+                if datetime_key in tracking:
+                    tracking['datetime'] = tracking[datetime_key].split('.')[0]
             elif type(datetime_key) == dict:
-                tracking['datetime'] = tracking[datetime_key['date']] + ' ' + tracking[datetime_key['time'].split('.')[0]]
+                if datetime_key['date'] in tracking and datetime_key['time'] in tracking:
+                    tracking['datetime'] = tracking[datetime_key['date']] + ' ' + tracking[datetime_key['time']].split('.')[0]
         
         if 'status_key' in site_config:
-            tracking['tracking_status'] = tracking[site_config['status_key']]
+            if site_config['status_key'] in tracking:
+                tracking['tracking_status'] = tracking[site_config['status_key']]
+            else:
+                tracking['tracking_status'] = tracking.get('tracking_status')
         else:
             tracking['tracking_status'] = tracking.get('tracking_status')
 
         if 'tracking_location_key' in site_config:
-            tracking['tracking_location'] = tracking[site_config['tracking_location_key']]
+            if site_config['tracking_location_key'] in tracking:
+                tracking['tracking_location'] = tracking[site_config['tracking_location_key']]
+            else:
+                tracking['tracking_location'] = tracking.get('tracking_location', '')
         else:
-            tracking['tracking_location'] = tracking.get('tracking_location')
+            tracking['tracking_location'] = tracking.get('tracking_location', '')
         
-        if 'tracking_location' in tracking:
+        if 'tracking_location' in tracking and tracking['tracking_location']:
             # html 태그 제거
             tracking['tracking_location'] = tracking['tracking_location'].strip()
             tracking['tracking_location'] = re.sub(r'<[^>]*>', '', tracking['tracking_location'])
 
-        
         return tracking
 
     def process_discord_data(self, update_data, update_result):
