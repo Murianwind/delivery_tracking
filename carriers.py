@@ -33,19 +33,38 @@ class CarrierBase:
         raise NotImplementedError
 
     def track(self, scraper, track_no):
-        """편의 메서드: 요약 정보 + 최신 배송 상태를 한 번에 가져온다."""
+        """요약 정보 + 최신 배송 상태를 한 번에 가져온다.
+
+        요약/추적 정보 중 하나만 실패하고 다른 하나가 성공하면, 성공한 쪽 정보로
+        상태가 정상적으로 갱신될 수 있으므로 여기서는 조용히 넘어간다.
+        둘 다 실패해서 이번 조회에서 얻은 정보가 하나도 없을 때만 경고를 한 번 남긴다.
+        (이 메서드는 모든 택배사가 공통으로 쓰므로, 여기 한 곳만 고치면 6개 택배사
+        전부에 동일하게 적용된다.)
+        """
+        info, info_error = None, None
         try:
             info = self.fetch_summary(scraper, track_no)
         except Exception as e:
-            P.logger.error(f'[{self.name}] 요약 정보 조회 중 오류 발생 - {track_no}: {str(e)}')
-            P.logger.error(traceback.format_exc())
-            info = None
+            info_error = str(e)
+            P.logger.debug(traceback.format_exc())
+
+        tracking, tracking_error = None, None
         try:
             tracking = self.fetch_tracking(scraper, track_no)
         except Exception as e:
-            P.logger.error(f'[{self.name}] 배송 상태 조회 중 오류 발생 - {track_no}: {str(e)}')
-            P.logger.error(traceback.format_exc())
-            tracking = None
+            tracking_error = str(e)
+            P.logger.debug(traceback.format_exc())
+
+        if info is None and tracking is None:
+            reason = info_error or tracking_error
+            if reason:
+                P.logger.warning(f'[{self.name}] 배송 정보를 가져오지 못했습니다. ({reason}) (track_no={track_no})')
+            else:
+                P.logger.warning(
+                    f'[{self.name}] 배송 정보를 가져오지 못했습니다. '
+                    f'사이트 응답 형식이 바뀌었거나 일시적인 오류일 수 있습니다. (track_no={track_no})'
+                )
+
         return info, tracking
 
 
@@ -226,11 +245,11 @@ class HtmlRegexCarrierTracker(CarrierBase):
         html_text = self._get_html(scraper, track_no)
         m = re.search(self.regex_info, html_text)
         if not m:
-            # 요청하신 4번 항목: 정규식이 사이트 마크업과 안 맞을 때 명확한 경고를 남긴다.
-            P.logger.warning(
-                f'[{self.name}] 요약 정보 정규식이 응답 페이지와 일치하지 않습니다. '
-                f'사이트 마크업이 변경되었을 수 있습니다. (track_no={track_no})'
-            )
+            # 여기서는 경고를 남기지 않는다. regex_tracking 쪽이 성공하면 정상적으로
+            # 배송 상태가 갱신되는 경우가 많아서, 이 시점에 매번 경고를 남기면
+            # "실제로는 문제없는" 케이스에서도 계속 경고가 뜨게 된다.
+            # 정말로 정보를 하나도 못 가져온 경우(둘 다 실패)의 경고는
+            # mod_basic.py::scrap_items에서 한 번만 남긴다.
             return None
         info = m.groupdict()
         self._apply_datetime(info, track_no)
@@ -242,11 +261,7 @@ class HtmlRegexCarrierTracker(CarrierBase):
         html_text = self._get_html(scraper, track_no)
         matches = list(re.finditer(self.regex_tracking, html_text))
         if not matches:
-            # 요청하신 4번 항목: 정규식이 사이트 마크업과 안 맞을 때 명확한 경고를 남긴다.
-            P.logger.warning(
-                f'[{self.name}] 배송 상태 정규식이 응답 페이지와 일치하지 않습니다. '
-                f'사이트 마크업이 변경되었을 수 있습니다. (track_no={track_no})'
-            )
+            # fetch_summary와 마찬가지로 여기서는 경고를 남기지 않는다.
             return None
         tracking = matches[0].groupdict() if self.order == 'desc' else matches[-1].groupdict()
         self._apply_datetime(tracking, track_no)
