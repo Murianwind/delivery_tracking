@@ -97,6 +97,16 @@ class ModuleBasic(PluginModuleBase):
                             tracker = tracker_cls()
                             scraper = cloudscraper.create_scraper()
                             info, tracking = tracker.track(scraper, track_no)
+
+                            # 둘 다 완전히 실패(=이번 폴링에서 얻은 실제 정보가 하나도 없음)했다면
+                            # 그냥 건너뛴다. 그렇지 않으면 status가 '상태정보없음'이라는 placeholder로
+                            # 채워져 실제 배송 상태를 덮어쓰거나 잘못된 알림을 보낼 수 있다.
+                            # (한쪽만 실패한 경우는 계속 진행 - 나머지 한쪽 정보로 정상 갱신 가능)
+                            if info is None and tracking is None:
+                                # 실제 경고 로그는 carriers.py::CarrierBase.track()에서
+                                # (모든 택배사 공통으로) 한 번만 남긴다. 여기서는 skip만 한다.
+                                continue
+
                             info = info or {}
                             tracking = tracking or {}
 
