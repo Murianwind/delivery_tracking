@@ -267,6 +267,12 @@ class HtmlRegexCarrierTracker(CarrierBase):
         self._apply_datetime(tracking, track_no)
         if tracking.get('tracking_location'):
             tracking['tracking_location'] = re.sub(r'<[^>]*>', '', tracking['tracking_location'].strip())
+        if tracking.get('tracking_status'):
+            # 한진택배 등 일부 사이트는 상태 문구를 <strong>배송완료</strong>하였습니다. 처럼
+            # 태그로 감싸서 내려준다. tracking_location과 동일하게 태그를 벗겨내지 않으면
+            # 목록/알림에 '완료'라는 글자는 정상 포함되어 있어도(감지는 됨) 화면에 태그가
+            # 그대로 노출된다.
+            tracking['tracking_status'] = re.sub(r'<[^>]*>', '', tracking['tracking_status'].strip())
         return tracking
 
 
@@ -274,7 +280,7 @@ class HanjinTracker(HtmlRegexCarrierTracker):
     name = '한진택배'
     url_template = 'https://www.hanjin.com/kor/CMS/DeliveryMgr/WaybillResult.do?mCode=MN038&schLang=KR&wblnumText2={track_no}'
     regex_info = r'<p class=\"cal-sec\"><span class=\"date\">(?P<date>[\d\-]{10})</span>\s<span class=\"time\">(?P<time>[\d\:]{5})</span></p>[\W\S]+?<strong>(?P<status>\w+)</strong>[\W\S]+?data-label=\"상품명\">(?P<item_name>.*)</td>\s+<td data-label=\"보내는 분\">(?P<from>.+)</td>\s+<td data-label=\"받는 분\">(?P<to>.+)'
-    regex_tracking = r'<td class=\"w-org\">(?P<tracking_location>[\w\s]+)</td>[\W\S]+?<span class=\"stateDesc\">(?P<tracking_status>.+)</span>'
+    regex_tracking = r'<td class=\"w-org\">(?P<tracking_location>[^<]+)</td>[\W\S]+?<span class=\"stateDesc\">(?P<tracking_status>.+)</span>'
     datetime_key = {'date': 'date', 'time': 'time'}
     time_format = '%Y.%m.%d %H:%M'
     order = 'asc'
