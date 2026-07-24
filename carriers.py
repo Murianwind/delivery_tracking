@@ -289,8 +289,8 @@ class HanjinTracker(HtmlRegexCarrierTracker):
 class EpostTracker(HtmlRegexCarrierTracker):
     name = '우체국택배'
     url_template = 'https://service.epost.go.kr/trace.RetrieveDomRigiTraceList.comm?displayHeader=N&sid1={track_no}'
-    regex_info = r'<tbody>\s+<tr>[\W\S]+?<td>(?P<from>[\w\*]+)[\W\S]+?<td>(?P<to>[\w\*]+)[\W\S]+?<td>(?P<item_name>[\w\s]+)</td>[\W\S]+?(?P<status>[\w\s]+)</td>\s+</tr>'
-    regex_tracking = r'<tr>[\W\S]+?<td>(?P<date>[\d\.]{10})</td>\s+<td>(?P<time>[\d\:]{5})</td>\s+<td>(?P<tracking_location>[\W\S]+?)</td>\s+<td>\s+<span class=\"evtnm\">(?P<tracking_status>\w+)</span>'
+    regex_info = r'<tbody>\s+<tr>[\W\S]+?<td>(?P<from>[^<]+)[\W\S]+?<td>(?P<to>[^<]+)[\W\S]+?<td>(?P<item_name>[^<]+)</td>[\W\S]+?(?P<status>[^<]+)</td>\s+</tr>'
+    regex_tracking = r'<tr>[\W\S]+?<td>(?P<date>[\d\.]{10})</td>\s+<td>(?P<time>[\d\:]{5})</td>\s+<td>(?P<tracking_location>[\W\S]+?)</td>\s+<td>\s+<span class=\"evtnm\">(?P<tracking_status>[^<]+)</span>'
     datetime_key = {'date': 'date', 'time': 'time'}
     time_format = '%Y.%m.%d %H:%M'
     order = 'asc'
@@ -300,7 +300,7 @@ class LotteTracker(HtmlRegexCarrierTracker):
     name = '롯데택배'
     url_template = 'https://www.lotteglogis.com/mobile/reservation/tracking/linkView?InvNo={track_no}'
     regex_info = r'<th scope=\"row\">발송지</th>\s+<td>(?P<from>.+)</td>\s+</tr>\s+<tr>\s+<th scope=\"row\">도착지</th>\s+<td>(?P<to>.+)</td>\s+</tr>\s+<tr>\s+<th scope=\"row\">배달결과</th>\s+<td>(?P<status>.+)</td>'
-    regex_tracking = r'<tr>\s+<td>(?P<tracking_status>[\w\s]+)</td>\s+<td>\s+(?P<date>[\w\-]{10})&nbsp;(?P<time>[\d\:]{5})\s+</td>\s+<td>\s+(?P<tracking_location>.+)\s+</td>\s+<td class=\"left01\">'
+    regex_tracking = r'<tr>\s+<td>(?P<tracking_status>[^<]+)</td>\s+<td>\s+(?P<date>[\w\-]{10})&nbsp;(?P<time>[\d\:]{5})\s+</td>\s+<td>\s+(?P<tracking_location>.+)\s+</td>\s+<td class=\"left01\">'
     datetime_key = {'date': 'date', 'time': 'time'}
     time_format = '%Y-%m-%d %H:%M'
     order = 'desc'
